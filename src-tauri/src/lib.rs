@@ -1,5 +1,5 @@
 mod commands;
-mod gerber;
+pub mod gerber;
 
 pub use gerber::{ObfuscateOptions, ProcessRequest, ProcessResult};
 

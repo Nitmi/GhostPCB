@@ -5,4 +5,4 @@ pub mod processor;
 pub mod types;
 
 pub use processor::GerberProcessor;
-pub use types::{ObfuscateOptions, ProcessRequest, ProcessResult};
+pub use types::{GerberFileType, ObfuscateOptions, ProcessRequest, ProcessResult};
