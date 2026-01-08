@@ -14,20 +14,20 @@ function App() {
   const [inputFile, setInputFile] = useState<string | null>(null);
   const [options, setOptions] = useState<ObfuscateOptions>(defaultOptions);
   const [count, setCount] = useState(1);
+  const [countInput, setCountInput] = useState("1");
   const [outputDir, setOutputDir] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [logs, setLogs] = useState<string[]>([]);
+  const [status, setStatus] = useState<{
+    type: "idle" | "success" | "error";
+    message: string;
+  }>({
+    type: "idle",
+    message: "",
+  });
   const [isDragging, setIsDragging] = useState(false);
 
-  const addLog = (msg: string) => {
-    const time = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev, `[${time}] ${msg}`]);
-  };
-
-  // 监听 Tauri 拖拽事件
   useEffect(() => {
     const webview = getCurrentWebviewWindow();
-
     const unlisten = webview.onDragDropEvent((event) => {
       if (event.payload.type === "over") {
         setIsDragging(true);
@@ -38,16 +38,15 @@ function App() {
           const file = paths[0];
           if (file.toLowerCase().endsWith(".zip")) {
             setInputFile(file);
-            addLog(`已选择文件: ${file}`);
+            setStatus({ type: "idle", message: "" });
           } else {
-            addLog(`❌ 请选择 ZIP 文件`);
+            setStatus({ type: "error", message: "请选择 ZIP 文件" });
           }
         }
-      } else if (event.payload.type === "cancel") {
+      } else if (event.payload.type === "leave") {
         setIsDragging(false);
       }
     });
-
     return () => {
       unlisten.then((fn) => fn());
     };
@@ -60,7 +59,7 @@ function App() {
     });
     if (selected) {
       setInputFile(selected as string);
-      addLog(`已选择文件: ${selected}`);
+      setStatus({ type: "idle", message: "" });
     }
   };
 
@@ -68,19 +67,16 @@ function App() {
     const selected = await open({ directory: true });
     if (selected) {
       setOutputDir(selected as string);
-      addLog(`输出目录: ${selected}`);
     }
   };
 
   const handleProcess = async () => {
     if (!inputFile) {
-      addLog("❌ 请先选择 Gerber 文件");
+      setStatus({ type: "error", message: "请先选择 Gerber 文件" });
       return;
     }
-
     setProcessing(true);
-    addLog("开始处理...");
-
+    setStatus({ type: "idle", message: "" });
     try {
       const request: ProcessRequest = {
         input_path: inputFile,
@@ -88,17 +84,17 @@ function App() {
         count,
         options,
       };
-
       const result = await invoke<ProcessResult>("process_gerber", { request });
-
       if (result.success) {
-        addLog(`✅ ${result.message}`);
-        result.output_files.forEach((f) => addLog(`   📄 ${f}`));
+        setStatus({
+          type: "success",
+          message: `成功生成 ${result.output_files.length} 个文件`,
+        });
       } else {
-        addLog(`❌ 处理失败: ${result.message}`);
+        setStatus({ type: "error", message: result.message });
       }
     } catch (e) {
-      addLog(`❌ 错误: ${e}`);
+      setStatus({ type: "error", message: String(e) });
     } finally {
       setProcessing(false);
     }
@@ -110,196 +106,214 @@ function App() {
 
   const getFileName = (path: string) => path.split(/[/\\]/).pop() || path;
 
+  const enabledCount = Object.values(options).filter(Boolean).length;
+
   return (
     <div className="app">
       <header className="header">
         <div className="logo">
           <h1>GhostPCB</h1>
+          <span className="divider">|</span>
+          <span className="subtitle">Gerber 混淆工具</span>
         </div>
-        <p className="subtitle">Gerber 混淆工具</p>
       </header>
 
       <main className="main">
-        <section className="card">
-          <h2 className="card-title">
-            <span className="icon">📁</span>
-            选择文件
-          </h2>
-          <div
-            className={`drop-zone ${inputFile ? "has-file" : ""} ${
-              isDragging ? "dragging" : ""
-            }`}
-            onClick={selectFile}
-          >
-            {inputFile ? (
-              <div className="file-info">
-                <span className="file-icon">📦</span>
-                <span className="file-name">{getFileName(inputFile)}</span>
-                <span className="file-change">点击更换</span>
-              </div>
-            ) : (
-              <div className="drop-hint">
-                <span className="drop-icon">⬆</span>
-                <span>点击或拖放以选择 Gerber 文件</span>
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="card">
-          <h2 className="card-title">
-            <span className="icon">⚙️</span>
-            混淆策略
-          </h2>
-          <div className="options-grid">
-            {[
-              {
-                key: "timestamp" as const,
-                label: "时间戳修改",
-                desc: "替换文件内时间信息",
-                risk: "safe",
-              },
-              {
-                key: "silkscreen" as const,
-                label: "丝印层扰动",
-                desc: "微调丝印坐标",
-                risk: "safe",
-              },
-              {
-                key: "geometry" as const,
-                label: "几何结构扰动",
-                desc: "钻孔坐标偏移",
-                risk: "low",
-              },
-              {
-                key: "structure" as const,
-                label: "文件结构混淆",
-                desc: "插入冗余指令",
-                risk: "safe",
-              },
-              {
-                key: "physical" as const,
-                label: "物理参数微调",
-                desc: "外框尺寸调整",
-                risk: "low",
-              },
-            ].map((opt) => (
-              <label
-                key={opt.key}
-                className={`option-item ${options[opt.key] ? "active" : ""}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={options[opt.key]}
-                  onChange={() => toggleOption(opt.key)}
-                />
-                <div className="option-content">
-                  <div className="option-header">
-                    <span className="option-label">{opt.label}</span>
-                    <span className={`risk-badge ${opt.risk}`}>
-                      {opt.risk === "safe" ? "无风险" : "低风险"}
-                    </span>
+        <div className="left-panel">
+          <section className="card file-card">
+            <h2 className="card-title">Gerber 文件</h2>
+            <div
+              className={`drop-zone ${inputFile ? "has-file" : ""} ${
+                isDragging ? "dragging" : ""
+              }`}
+              onClick={selectFile}
+            >
+              {inputFile ? (
+                <div className="file-info">
+                  <span className="file-icon">📦</span>
+                  <div className="file-details">
+                    <span className="file-name">{getFileName(inputFile)}</span>
+                    <span className="file-path">{inputFile}</span>
                   </div>
-                  <span className="option-desc">{opt.desc}</span>
                 </div>
-                <div className="checkbox-visual">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                  </svg>
+              ) : (
+                <div className="drop-hint">
+                  <span className="drop-icon">📁</span>
+                  <span>点击选择或拖拽 ZIP 文件</span>
                 </div>
-              </label>
-            ))}
-          </div>
-        </section>
-
-        <section className="card">
-          <h2 className="card-title">
-            <span className="icon">📊</span>
-            生成设置
-          </h2>
-          <div className="settings-row">
-            <div className="setting-item">
-              <label>生成数量</label>
-              <div className="number-input">
-                <button onClick={() => setCount(Math.max(1, count - 1))}>
-                  −
-                </button>
-                <input
-                  type="number"
-                  value={count}
-                  onChange={(e) =>
-                    setCount(Math.max(1, parseInt(e.target.value) || 1))
-                  }
-                  min={1}
-                  max={99}
-                />
-                <button onClick={() => setCount(Math.min(99, count + 1))}>
-                  +
-                </button>
-              </div>
+              )}
             </div>
-            <div className="setting-item output-setting">
-              <label>输出目录</label>
-              <div className="output-row">
-                <span className="output-path">
-                  {outputDir ? getFileName(outputDir) : "默认（原文件同级）"}
-                </span>
-                <button className="btn-secondary" onClick={selectOutputDir}>
-                  选择...
-                </button>
-                {outputDir && (
+          </section>
+
+          <section className="card settings-card">
+            <h2 className="card-title">生成设置</h2>
+            <div className="settings-list">
+              <div className="setting-item">
+                <label>生成数量</label>
+                <div className="number-input">
                   <button
-                    className="btn-clear"
-                    onClick={() => setOutputDir(null)}
+                    onClick={() => {
+                      const newCount = Math.max(1, count - 1);
+                      setCount(newCount);
+                      setCountInput(String(newCount));
+                    }}
                   >
-                    ✕
+                    −
                   </button>
-                )}
+                  <input
+                    type="text"
+                    value={countInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^\d+$/.test(val)) {
+                        setCountInput(val);
+                        if (val !== "") {
+                          const num = parseInt(val);
+                          if (num >= 1 && num <= 99) {
+                            setCount(num);
+                          }
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      if (countInput === "" || parseInt(countInput) < 1) {
+                        setCount(1);
+                        setCountInput("1");
+                      } else if (parseInt(countInput) > 99) {
+                        setCount(99);
+                        setCountInput("99");
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      const newCount = Math.min(99, count + 1);
+                      setCount(newCount);
+                      setCountInput(String(newCount));
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <div className="setting-item">
+                <label>输出目录</label>
+                <div className="output-row">
+                  <span className="output-path" title={outputDir || undefined}>
+                    {outputDir ? getFileName(outputDir) : "原文件同级目录"}
+                  </span>
+                  <button
+                    className="btn-icon"
+                    onClick={selectOutputDir}
+                    title="选择目录"
+                  >
+                    📂
+                  </button>
+                  {outputDir && (
+                    <button
+                      className="btn-icon btn-clear"
+                      onClick={() => setOutputDir(null)}
+                      title="重置"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <button
-          className={`btn-process ${processing ? "processing" : ""}`}
-          onClick={handleProcess}
-          disabled={processing || !inputFile}
-        >
-          {processing ? (
-            <>
-              <span className="spinner"></span>
-              处理中...
-            </>
-          ) : (
-            <>开始处理</>
-          )}
-        </button>
+          <button
+            className={`btn-process ${processing ? "processing" : ""}`}
+            onClick={handleProcess}
+            disabled={processing || !inputFile}
+          >
+            {processing ? (
+              <>
+                <span className="spinner"></span>
+                处理中...
+              </>
+            ) : (
+              <>开始处理</>
+            )}
+          </button>
 
-        {logs.length > 0 && (
-          <section className="card log-card">
-            <div className="log-header">
-              <h2 className="card-title">
-                <span className="icon">📋</span>
-                处理日志
-              </h2>
-              <button className="btn-clear-log" onClick={() => setLogs([])}>
-                清空
-              </button>
+          {status.message && (
+            <div className={`status-bar ${status.type}`}>
+              <span className="status-icon">
+                {status.type === "success" ? "✓" : "!"}
+              </span>
+              <span>{status.message}</span>
             </div>
-            <div className="log-content">
-              {logs.map((log, i) => (
-                <div key={i} className="log-line">
-                  {log}
-                </div>
+          )}
+        </div>
+
+        <div className="right-panel">
+          <section className="card options-card">
+            <div className="options-header">
+              <h2 className="card-title">混淆策略</h2>
+              <span className="options-count">{enabledCount}/5 已启用</span>
+            </div>
+            <div className="options-list">
+              {[
+                {
+                  key: "timestamp" as const,
+                  label: "时间戳修改",
+                  desc: "替换文件内的日期时间信息",
+                  risk: "safe",
+                },
+                {
+                  key: "silkscreen" as const,
+                  label: "丝印层扰动",
+                  desc: "微调丝印层坐标 (±0.05mm)",
+                  risk: "safe",
+                },
+                {
+                  key: "geometry" as const,
+                  label: "几何结构扰动",
+                  desc: "钻孔坐标随机偏移 (±0.02mm)",
+                  risk: "low",
+                },
+                {
+                  key: "structure" as const,
+                  label: "文件结构混淆",
+                  desc: "插入冗余指令和随机注释",
+                  risk: "safe",
+                },
+                {
+                  key: "physical" as const,
+                  label: "物理参数微调",
+                  desc: "外框尺寸微调 (±0.01mm)",
+                  risk: "low",
+                },
+              ].map((opt) => (
+                <label
+                  key={opt.key}
+                  className={`option-item ${options[opt.key] ? "active" : ""}`}
+                >
+                  <div className="option-content">
+                    <div className="option-header">
+                      <span className="option-label">{opt.label}</span>
+                      <span className={`risk-badge ${opt.risk}`}>
+                        {opt.risk === "safe" ? "无风险" : "低风险"}
+                      </span>
+                    </div>
+                    <span className="option-desc">{opt.desc}</span>
+                  </div>
+                  <div className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={options[opt.key]}
+                      onChange={() => toggleOption(opt.key)}
+                    />
+                    <span className="toggle-slider"></span>
+                  </div>
+                </label>
               ))}
             </div>
           </section>
-        )}
+        </div>
       </main>
-
-      <footer className="footer">
-        <span>GhostPCB v0.1.0</span>
-      </footer>
     </div>
   );
 }

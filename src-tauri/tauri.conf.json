@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "ghostpcb",
-        "width": 800,
-        "height": 600
+        "title": "GhostPCB",
+        "width": 820,
+        "height": 480,
+        "minWidth": 720,
+        "minHeight": 400
       }
     ],
     "security": {
