@@ -12,7 +12,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, ubuntu-22.04, windows-latest]
+        include:
+          - platform: macos-latest
+            args: ""
+          - platform: ubuntu-22.04
+            args: ""
+          - platform: windows-latest
+            args: ""
+            args_beta: "--bundles nsis"
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -37,18 +44,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
-      # 从 tag 中提取版本号并更新配置文件
       - name: Update version from tag
         shell: bash
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           echo "Version: $VERSION"
-          # 更新 tauri.conf.json
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
-          else
-            sed -i '' "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json 2>/dev/null || sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
-          fi
+          sed -i.bak "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
 
       - name: Install dependencies
         run: pnpm install
@@ -63,5 +64,4 @@ jobs:
           releaseBody: "见变更日志。"
           releaseDraft: false
           prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
-          # 对于 beta 版本，只构建 NSIS（跳过 MSI）
-          args: ${{ contains(github.ref, 'beta') && '--bundles nsis,dmg,deb,rpm,appimage' || '' }}
+          args: ${{ contains(github.ref, 'beta') && matrix.args_beta || matrix.args }}
