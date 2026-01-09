@@ -11,7 +11,7 @@ import {
   defaultOptions,
 } from "./types";
 
-const APP_VERSION = "0.1.0-beta.1";
+const APP_VERSION = "v0.1.0-beta.1";
 const GITHUB_URL = "https://github.com/Nitmi/GhostPCB";
 
 function App() {
@@ -365,7 +365,7 @@ function App() {
                 <p>异化 Gerber 文件</p>
                 <p>但生产出来是同样的 PCB</p>
               </div>
-              <p className="about-version">Version {APP_VERSION}</p>
+              <p className="about-version">{APP_VERSION}</p>
               <button
                 className="btn-github"
                 onClick={() => openUrl(GITHUB_URL)}
