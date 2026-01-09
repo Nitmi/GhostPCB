@@ -13,7 +13,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 同时在三个操作系统上运行构建
         platform: [macos-latest, ubuntu-22.04, windows-latest]
 
     runs-on: ${{ matrix.platform }}
@@ -21,35 +20,34 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 1. 设置 Node.js 环境（用于前端编译）
       - name: Setup node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "npm" # 或者 yarn/pnpm
 
-      # 2. 安装 Rust（用于后端编译）
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      # 3. 安装 Linux 依赖（仅在 Ubuntu 上运行）
       - if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
-      # 4. 安装前端依赖
       - name: Install dependencies
-        run: npm install
+        run: pnpm install
 
-      # 5. 构建并发布
       - name: Build and Release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }} # 使用当前推送到 Git 的 Tag 名
-          releaseName: "App Name v__VERSION__" # __VERSION__ 会被自动替换
+          tagName: ${{ github.ref_name }}
+          releaseName: "GhostPCB v__VERSION__"
           releaseBody: "见变更日志。"
-          releaseDraft: true # 先作为草稿创建，你可以手动确认后再发布
+          releaseDraft: true
           prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
