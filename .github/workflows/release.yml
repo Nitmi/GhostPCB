@@ -1,6 +1,5 @@
 name: "Publish Release"
 
-# 只有当推送以 v 开头的标签（如 v1.0.0）时才触发
 on:
   push:
     tags:
@@ -38,6 +37,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
+      # 从 tag 中提取版本号并更新配置文件
+      - name: Update version from tag
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "Version: $VERSION"
+          # 更新 tauri.conf.json
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
+          else
+            sed -i '' "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json 2>/dev/null || sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
+          fi
+
       - name: Install dependencies
         run: pnpm install
 
@@ -47,7 +59,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: "GhostPCB v__VERSION__"
+          releaseName: "GhostPCB ${{ github.ref_name }}"
           releaseBody: "见变更日志。"
-          releaseDraft: true
+          releaseDraft: false
           prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          # 对于 beta 版本，只构建 NSIS（跳过 MSI）
+          args: ${{ contains(github.ref, 'beta') && '--bundles nsis,dmg,deb,rpm,appimage' || '' }}
