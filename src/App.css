@@ -579,3 +579,197 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--border-light);
 }
+
+/* About Button */
+.btn-about {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.btn-about:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* About Modal */
+.about-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.about-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 380px;
+  max-width: 90vw;
+  animation: slideIn 0.2s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.about-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.about-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.btn-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.btn-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.about-content {
+  padding: 32px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.about-icon {
+  width: 80px;
+  height: 80px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.about-app-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.about-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.about-desc-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+
+.about-desc-group p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.about-version {
+  font-size: 13px;
+  color: var(--accent);
+  margin-bottom: 20px;
+}
+
+.btn-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-github:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-light);
+}
+
+.about-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.about-footer p {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  text-align: center;
+}
+
+@media (prefers-color-scheme: light) {
+  .about-overlay {
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  .about-modal {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  }
+}
