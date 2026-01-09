@@ -688,14 +688,15 @@ body {
 .about-icon {
   width: 80px;
   height: 80px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary);
   margin-bottom: 16px;
+}
+
+.about-icon img {
+  width: 64px;
+  height: 64px;
 }
 
 .about-app-name {

@@ -357,28 +357,7 @@ function App() {
             </div>
             <div className="about-content">
               <div className="about-icon">
-                <svg viewBox="0 0 24 24" width="64" height="64">
-                  <rect
-                    x="4"
-                    y="4"
-                    width="16"
-                    height="16"
-                    rx="3"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  />
-                  <rect
-                    x="7"
-                    y="7"
-                    width="10"
-                    height="6"
-                    rx="1.5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  />
-                </svg>
+                <img src="/icon.png" alt="GhostPCB" width="64" height="64" />
               </div>
               <h2 className="about-app-name">GhostPCB</h2>
               <div className="about-desc-group">

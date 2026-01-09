@@ -13,10 +13,8 @@
     "windows": [
       {
         "title": "GhostPCB",
-        "width": 820,
-        "height": 480,
-        "minWidth": 720,
-        "minHeight": 400
+        "width": 800,
+        "height": 570
       }
     ],
     "security": {
