@@ -13,7 +13,7 @@ import {
   defaultOptions,
 } from "./types";
 
-const APP_VERSION = "v1.0.0";
+const APP_VERSION = "v1.1.0";
 const GITHUB_URL = "https://github.com/Nitmi/GhostPCB";
 
 function App() {

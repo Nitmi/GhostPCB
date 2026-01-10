@@ -18,7 +18,7 @@ jobs:
           - platform: ubuntu-22.04
             args: ""
           - platform: windows-latest
-            args: ""
+            args: "--bundles nsis"
             args_beta: "--bundles nsis"
 
     runs-on: ${{ matrix.platform }}
