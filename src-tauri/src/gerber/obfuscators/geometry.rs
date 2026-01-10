@@ -61,19 +61,21 @@ impl GeometryObfuscator {
     fn obfuscate_drill(&self, content: &str) -> Result<String> {
         let mut result = String::new();
         // Excellon 钻孔格式: X25.24994Y8.763 或 X25Y8
-        let coord_re = Regex::new(r"X(-?[\d.]+)Y(-?[\d.]+)").unwrap();
+        let coord_re = Regex::new(r"^X(-?[\d.]+)Y(-?[\d.]+)$").unwrap();
 
         for line in content.lines() {
+            let trimmed = line.trim();
+            
             // 跳过头部定义行
-            if line.starts_with(';') || line.starts_with('%') || line.starts_with('M') 
-               || line.starts_with('T') || line.starts_with('G') || line.trim().is_empty() {
+            if trimmed.starts_with(';') || trimmed.starts_with('%') || trimmed.starts_with('M') 
+               || trimmed.starts_with('T') || trimmed.starts_with('G') || trimmed.is_empty() {
                 result.push_str(line);
                 result.push('\n');
                 continue;
             }
 
-            if coord_re.is_match(line) {
-                let new_line = coord_re.replace_all(line, |caps: &regex::Captures| {
+            if coord_re.is_match(trimmed) {
+                let new_line = coord_re.replace(trimmed, |caps: &regex::Captures| {
                     let x = Self::apply_drill_jitter(&caps[1]);
                     let y = Self::apply_drill_jitter(&caps[2]);
                     format!("X{}Y{}", x, y)
@@ -94,26 +96,40 @@ impl GeometryObfuscator {
 
     fn obfuscate_copper(&self, content: &str) -> Result<String> {
         let mut result = String::new();
-        let coord_re = Regex::new(r"X(-?\d+)Y(-?\d+)").unwrap();
+        // 匹配 G01/G02/G03 坐标指令或纯坐标指令
+        let coord_re = Regex::new(r"^(G0[123])?X(-?\d+)Y(-?\d+)(D\d+\*?)?$").unwrap();
 
         for line in content.lines() {
-            // 跳过头部定义和特殊指令
-            if line.starts_with('G') && !line.contains('X') || 
-               line.starts_with('%') || line.starts_with('M') {
+            let trimmed = line.trim();
+            
+            // 跳过格式定义行（以 % 开头）、注释行（G04）、控制指令
+            if trimmed.starts_with('%') || trimmed.starts_with("G04") || 
+               trimmed.starts_with('M') || trimmed.is_empty() ||
+               trimmed.starts_with("G36") || trimmed.starts_with("G37") ||
+               trimmed.starts_with("G75") {
+                result.push_str(line);
+                result.push('\n');
+                continue;
+            }
+            
+            // 跳过 D 码选择指令 (如 D10*)
+            if trimmed.starts_with('D') && !trimmed.contains('X') {
                 result.push_str(line);
                 result.push('\n');
                 continue;
             }
 
-            if coord_re.is_match(line) {
-                let new_line = coord_re.replace_all(line, |caps: &regex::Captures| {
-                    let x: i64 = caps[1].parse().unwrap_or(0);
-                    let y: i64 = caps[2].parse().unwrap_or(0);
+            if coord_re.is_match(trimmed) {
+                let new_line = coord_re.replace(trimmed, |caps: &regex::Captures| {
+                    let prefix = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let x: i64 = caps[2].parse().unwrap_or(0);
+                    let y: i64 = caps[3].parse().unwrap_or(0);
+                    let suffix = caps.get(4).map(|m| m.as_str()).unwrap_or("");
                     
                     let new_x = Self::apply_gerber_coord_jitter(x);
                     let new_y = Self::apply_gerber_coord_jitter(y);
                     
-                    format!("X{}Y{}", new_x, new_y)
+                    format!("{}X{}Y{}{}", prefix, new_x, new_y, suffix)
                 });
                 result.push_str(&new_line);
             } else {

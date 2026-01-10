@@ -32,30 +32,44 @@ impl Obfuscator for PhysicalObfuscator {
         }
 
         let mut result = String::new();
-        let coord_re = Regex::new(r"X(-?\d+)Y(-?\d+)").unwrap();
+        // 匹配 G01/G02/G03 坐标指令或纯坐标指令
+        let coord_re = Regex::new(r"^(G0[123])?X(-?\d+)Y(-?\d+)(D\d+\*?)?$").unwrap();
         
         // 对整个板框应用统一偏移，保持形状
         let offset = Self::get_uniform_offset();
 
         for line in content.lines() {
-            // 跳过头部定义
-            if line.starts_with('%') || line.starts_with('M') || 
-               (line.starts_with('G') && !line.contains('X')) {
+            let trimmed = line.trim();
+            
+            // 跳过格式定义行（以 % 开头）、注释行（G04）、控制指令
+            if trimmed.starts_with('%') || trimmed.starts_with("G04") || 
+               trimmed.starts_with('M') || trimmed.is_empty() ||
+               trimmed.starts_with("G36") || trimmed.starts_with("G37") ||
+               trimmed.starts_with("G75") {
+                result.push_str(line);
+                result.push('\n');
+                continue;
+            }
+            
+            // 跳过 D 码选择指令 (如 D10*)
+            if trimmed.starts_with('D') && !trimmed.contains('X') {
                 result.push_str(line);
                 result.push('\n');
                 continue;
             }
 
-            if coord_re.is_match(line) {
-                let new_line = coord_re.replace_all(line, |caps: &regex::Captures| {
-                    let x: i64 = caps[1].parse().unwrap_or(0);
-                    let y: i64 = caps[2].parse().unwrap_or(0);
+            if coord_re.is_match(trimmed) {
+                let new_line = coord_re.replace(trimmed, |caps: &regex::Captures| {
+                    let prefix = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let x: i64 = caps[2].parse().unwrap_or(0);
+                    let y: i64 = caps[3].parse().unwrap_or(0);
+                    let suffix = caps.get(4).map(|m| m.as_str()).unwrap_or("");
                     
                     // 对所有坐标应用统一偏移
                     let new_x = x + offset;
                     let new_y = y + offset;
                     
-                    format!("X{}Y{}", new_x, new_y)
+                    format!("{}X{}Y{}{}", prefix, new_x, new_y, suffix)
                 });
                 result.push_str(&new_line);
             } else {

@@ -39,20 +39,33 @@ impl Obfuscator for SilkscreenObfuscator {
         }
 
         let mut result = String::new();
-        // 匹配坐标指令: X123456Y789012D01* 或 X123456Y789012D02* 等
-        let coord_re = Regex::new(r"X(-?\d+)Y(-?\d+)(D0[123]\*|D0[123]$|\*)").unwrap();
+        // 匹配 G01/G02/G03 坐标指令: G01X4461125Y2961782D01*
+        let coord_re = Regex::new(r"^(G0[123])?X(-?\d+)Y(-?\d+)(D0[123]\*?)$").unwrap();
 
         for line in content.lines() {
-            if coord_re.is_match(line) {
-                let new_line = coord_re.replace_all(line, |caps: &regex::Captures| {
-                    let x: i64 = caps[1].parse().unwrap_or(0);
-                    let y: i64 = caps[2].parse().unwrap_or(0);
-                    let suffix = &caps[3];
+            let trimmed = line.trim();
+            
+            // 跳过格式定义行（以 % 开头）、注释行（G04）、其他控制指令
+            if trimmed.starts_with('%') || trimmed.starts_with("G04") || 
+               trimmed.starts_with('M') || trimmed.is_empty() ||
+               trimmed.starts_with("G36") || trimmed.starts_with("G37") ||
+               trimmed.starts_with("G75") {
+                result.push_str(line);
+                result.push('\n');
+                continue;
+            }
+            
+            if coord_re.is_match(trimmed) {
+                let new_line = coord_re.replace(trimmed, |caps: &regex::Captures| {
+                    let prefix = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let x: i64 = caps[2].parse().unwrap_or(0);
+                    let y: i64 = caps[3].parse().unwrap_or(0);
+                    let suffix = &caps[4];
                     
                     let new_x = Self::apply_coordinate_jitter(x);
                     let new_y = Self::apply_coordinate_jitter(y);
                     
-                    format!("X{}Y{}{}", new_x, new_y, suffix)
+                    format!("{}X{}Y{}{}", prefix, new_x, new_y, suffix)
                 });
                 result.push_str(&new_line);
             } else {
