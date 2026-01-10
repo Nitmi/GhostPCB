@@ -20,9 +20,9 @@ export interface ProcessResult {
 }
 
 export const defaultOptions: ObfuscateOptions = {
-  timestamp: true,
+  timestamp: false,
   silkscreen: true,
-  geometry: true,
-  structure: true,
+  geometry: false,
+  structure: false,
   physical: true,
 };
