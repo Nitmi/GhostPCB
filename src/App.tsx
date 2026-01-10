@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { check } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import "./App.css";
 import {
   ObfuscateOptions,
@@ -11,7 +13,7 @@ import {
   defaultOptions,
 } from "./types";
 
-const APP_VERSION = "v0.1.0-beta.1";
+const APP_VERSION = "v1.0.0";
 const GITHUB_URL = "https://github.com/Nitmi/GhostPCB";
 
 function App() {
@@ -30,6 +32,59 @@ function App() {
   });
   const [isDragging, setIsDragging] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<{
+    available: boolean;
+    version?: string;
+    downloading?: boolean;
+    progress?: number;
+  }>({ available: false });
+
+  // 检查更新
+  useEffect(() => {
+    const checkUpdate = async () => {
+      try {
+        const update = await check();
+        if (update) {
+          setUpdateInfo({ available: true, version: update.version });
+        }
+      } catch (e) {
+        console.error("检查更新失败:", e);
+      }
+    };
+    checkUpdate();
+  }, []);
+
+  // 执行更新
+  const handleUpdate = async () => {
+    try {
+      const update = await check();
+      if (!update) return;
+
+      setUpdateInfo((prev) => ({ ...prev, downloading: true, progress: 0 }));
+
+      let downloaded = 0;
+      let contentLength = 0;
+
+      await update.downloadAndInstall((event) => {
+        if (event.event === "Started") {
+          contentLength =
+            (event.data as { contentLength?: number }).contentLength || 0;
+        } else if (event.event === "Progress") {
+          downloaded += (event.data as { chunkLength: number }).chunkLength;
+          if (contentLength > 0) {
+            const progress = Math.round((downloaded / contentLength) * 100);
+            setUpdateInfo((prev) => ({ ...prev, progress }));
+          }
+        }
+      });
+
+      await relaunch();
+    } catch (e) {
+      console.error("更新失败:", e);
+      setUpdateInfo((prev) => ({ ...prev, downloading: false }));
+      setStatus({ type: "error", message: "更新失败: " + String(e) });
+    }
+  };
 
   useEffect(() => {
     const webview = getCurrentWebviewWindow();
@@ -121,27 +176,65 @@ function App() {
           <span className="divider">|</span>
           <span className="subtitle">Gerber 混淆工具</span>
         </div>
-        <button
-          className="btn-about"
-          onClick={() => setShowAbout(true)}
-          title="关于"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        <div className="header-actions">
+          {updateInfo.available && (
+            <button
+              className={`btn-update ${
+                updateInfo.downloading ? "downloading" : ""
+              }`}
+              onClick={handleUpdate}
+              disabled={updateInfo.downloading}
+              title={`新版本 ${updateInfo.version} 可用`}
+            >
+              {updateInfo.downloading ? (
+                <>
+                  <span className="spinner-small"></span>
+                  {updateInfo.progress}%
+                </>
+              ) : (
+                <>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" x2="12" y1="15" y2="3" />
+                  </svg>
+                  更新
+                </>
+              )}
+            </button>
+          )}
+          <button
+            className="btn-about"
+            onClick={() => setShowAbout(true)}
+            title="关于"
           >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" x2="12" y1="8" y2="12" />
-            <line x1="12" x2="12.01" y1="16" y2="16" />
-          </svg>
-        </button>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" x2="12" y1="8" y2="12" />
+              <line x1="12" x2="12.01" y1="16" y2="16" />
+            </svg>
+          </button>
+        </div>
       </header>
 
       <main className="main">

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "GhostPCB",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "identifier": "com.nitmi.ghostpcb",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -30,6 +30,18 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ5ODQxQkZDNzc3QUIzNUUKUldSZXMzcDMvQnVFU2VKYnZEaVpHQmNOODcrNzB2QnV1UG55VGZsQzl2WDk4eUtONGY3bldGbUIK",
+      "endpoints": [
+        "https://github.com/Nitmi/GhostPCB/releases/latest/download/latest.json",
+        "https://gh-proxy.org/https://github.com/Nitmi/GhostPCB/releases/latest/download/latest.json",
+        "https://hk.gh-proxy.org/https://github.com/Nitmi/GhostPCB/releases/latest/download/latest.json",
+        "https://edgeone.gh-proxy.org/https://github.com/Nitmi/GhostPCB/releases/latest/download/latest.json"
+      ]
+    }
   }
 }
