@@ -54,6 +54,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Extract changelog
+        id: changelog
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          # 提取当前版本的 changelog 内容
+          CHANGELOG=$(awk "/^## \[?$VERSION\]?/{flag=1; next} /^## /{flag=0} flag" CHANGELOG.md 2>/dev/null || echo "")
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="Release $GITHUB_REF_NAME"
+          fi
+          # 处理多行内容
+          echo "content<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Build and Release
         uses: tauri-apps/tauri-action@v0
         env:
@@ -63,7 +78,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "GhostPCB ${{ github.ref_name }}"
-          releaseBody: "见变更日志。"
+          releaseBody: ${{ steps.changelog.outputs.content }}
           releaseDraft: false
           prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
           args: ${{ contains(github.ref, 'beta') && matrix.args_beta || matrix.args }}

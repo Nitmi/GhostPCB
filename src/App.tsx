@@ -388,16 +388,16 @@ function App() {
                   risk: "safe",
                 },
                 {
-                  key: "geometry" as const,
-                  label: "几何结构扰动",
-                  desc: "钻孔坐标随机偏移 (±0.02mm)",
-                  risk: "low",
-                },
-                {
                   key: "structure" as const,
                   label: "文件结构混淆",
                   desc: "插入冗余指令和随机注释",
                   risk: "safe",
+                },
+                {
+                  key: "geometry" as const,
+                  label: "几何结构扰动",
+                  desc: "钻孔坐标随机偏移 (±0.02mm)",
+                  risk: "low",
                 },
                 {
                   key: "physical" as const,
