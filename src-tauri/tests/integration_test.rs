@@ -38,9 +38,9 @@ fn test_process_gerber_zip() {
     for file in &result.output_files {
         let path = Path::new(file);
         assert!(path.exists(), "输出文件不存在: {}", file);
-        // 验证文件名格式: Gerber_PCB1_YYYY-MM-DD_序号.zip
+        // 验证文件名格式: Gerber_PCB{随机数}_YYYY-MM-DD.zip
         let filename = path.file_name().unwrap().to_str().unwrap();
-        assert!(filename.starts_with("Gerber_PCB1_"), "文件名应以 Gerber_PCB1_ 开头: {}", filename);
+        assert!(filename.starts_with("Gerber_PCB"), "文件名应以 Gerber_PCB 开头: {}", filename);
         assert!(filename.ends_with(".zip"), "文件名应以 .zip 结尾: {}", filename);
         // 验证输出目录包含 GhostPCB_ 前缀
         let parent = path.parent().unwrap().file_name().unwrap().to_str().unwrap();

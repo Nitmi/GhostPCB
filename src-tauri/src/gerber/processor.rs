@@ -1,7 +1,8 @@
 use crate::gerber::error::{GhostPcbError, Result};
 use crate::gerber::pipeline::ObfuscationPipeline;
 use crate::gerber::types::{GerberFileType, ObfuscateOptions, ProcessRequest, ProcessResult};
-use chrono::Local;
+use chrono::{Local, Duration};
+use rand::Rng;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -25,12 +26,19 @@ impl GerberProcessor {
         fs::create_dir_all(&output_dir)?;
 
         let mut output_files = Vec::new();
-        let date = Local::now().format("%Y-%m-%d").to_string();
+        let mut rng = rand::thread_rng();
 
         // 生成指定数量的混淆文件
-        // 文件命名: Gerber_PCB1_YYYY-MM-DD_序号.zip
-        for i in 1..=request.count {
-            let output_filename = format!("Gerber_PCB1_{}_{}.zip", date, i);
+        // 文件命名: Gerber_PCB{随机数}_YYYY-MM-DD.zip
+        // 每个文件使用不同的随机 PCB 编号和随机日期，避免被检测为相似文件
+        for _i in 1..=request.count {
+            // 随机 PCB 编号 (1-999)
+            let pcb_num: u32 = rng.gen_range(1..=999);
+            // 随机日期 (过去 30 天内)
+            let days_ago: i64 = rng.gen_range(1..=30);
+            let random_date = (Local::now() - Duration::days(days_ago)).format("%Y-%m-%d").to_string();
+            
+            let output_filename = format!("Gerber_PCB{}_{}.zip", pcb_num, random_date);
             let output_path = output_dir.join(&output_filename);
             
             Self::process_single(input_path, &output_path, &request.options)?;
