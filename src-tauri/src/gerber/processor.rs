@@ -25,14 +25,12 @@ impl GerberProcessor {
         fs::create_dir_all(&output_dir)?;
 
         let mut output_files = Vec::new();
-        let original_name = input_path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("gerber");
+        let date = Local::now().format("%Y-%m-%d").to_string();
 
         // 生成指定数量的混淆文件
+        // 文件命名: Gerber_PCB1_YYYY-MM-DD_序号.zip
         for i in 1..=request.count {
-            let output_filename = format!("{}_{}.zip", original_name, i);
+            let output_filename = format!("Gerber_PCB1_{}_{}.zip", date, i);
             let output_path = output_dir.join(&output_filename);
             
             Self::process_single(input_path, &output_path, &request.options)?;
@@ -47,21 +45,23 @@ impl GerberProcessor {
     }
 
     /// 获取输出目录
+    /// 无论是否有自定义目录，都会创建 GhostPCB_日期_原文件名 文件夹
     fn get_output_dir(input_path: &Path, custom_dir: Option<&str>) -> Result<PathBuf> {
-        if let Some(dir) = custom_dir {
-            return Ok(PathBuf::from(dir));
-        }
-
-        // 默认: 原文件同级目录/GhostPCB_日期_原文件名/
-        let parent = input_path.parent().unwrap_or(Path::new("."));
         let original_name = input_path
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("gerber");
         let date = Local::now().format("%Y%m%d").to_string();
         let dir_name = format!("GhostPCB_{}_{}", date, original_name);
+
+        let base_dir = if let Some(dir) = custom_dir {
+            PathBuf::from(dir)
+        } else {
+            // 默认: 原文件同级目录
+            input_path.parent().unwrap_or(Path::new(".")).to_path_buf()
+        };
         
-        Ok(parent.join(dir_name))
+        Ok(base_dir.join(dir_name))
     }
 
     /// 处理单个文件

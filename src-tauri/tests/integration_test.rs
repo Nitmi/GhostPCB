@@ -18,11 +18,11 @@ fn test_process_gerber_zip() {
         return;
     }
 
-    let output_dir = std::env::temp_dir().join("ghostpcb_test");
+    let output_base = std::env::temp_dir().join("ghostpcb_test");
     
     let request = ProcessRequest {
         input_path: zip_path.to_string_lossy().to_string(),
-        output_dir: Some(output_dir.to_string_lossy().to_string()),
+        output_dir: Some(output_base.to_string_lossy().to_string()),
         count: 2,
         options: ObfuscateOptions::default(),
     };
@@ -38,14 +38,21 @@ fn test_process_gerber_zip() {
     for file in &result.output_files {
         let path = Path::new(file);
         assert!(path.exists(), "输出文件不存在: {}", file);
+        // 验证文件名格式: Gerber_PCB1_YYYY-MM-DD_序号.zip
+        let filename = path.file_name().unwrap().to_str().unwrap();
+        assert!(filename.starts_with("Gerber_PCB1_"), "文件名应以 Gerber_PCB1_ 开头: {}", filename);
+        assert!(filename.ends_with(".zip"), "文件名应以 .zip 结尾: {}", filename);
+        // 验证输出目录包含 GhostPCB_ 前缀
+        let parent = path.parent().unwrap().file_name().unwrap().to_str().unwrap();
+        assert!(parent.starts_with("GhostPCB_"), "输出目录应以 GhostPCB_ 开头: {}", parent);
         println!("✅ 生成: {}", file);
     }
 
     println!("✅ 测试通过！消息: {}", result.message);
-    println!("📁 输出目录: {}", output_dir.display());
+    println!("📁 输出基础目录: {}", output_base.display());
 
     // 注释掉清理代码以便查看生成的文件
-    // let _ = std::fs::remove_dir_all(&output_dir);
+    // let _ = std::fs::remove_dir_all(&output_base);
 }
 
 #[test]
