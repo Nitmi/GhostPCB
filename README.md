@@ -2,7 +2,7 @@
 
 一个 Gerber 文件指纹混淆工具。异化 Gerber 文件，但生产出来是同样的 PCB。
 
-<img src="docs/screenshot.png" alt="应用截图" style="zoom: 30%;" />
+<img src="docs/screenshot.png" alt="应用截图" width="300" />
 
 ## 技术栈
 
