@@ -8,24 +8,11 @@ pub struct ObfuscationPipeline {
 }
 
 impl ObfuscationPipeline {
-    pub fn from_options(options: &ObfuscateOptions) -> Self {
+    pub fn from_options(_options: &ObfuscateOptions) -> Self {
         let mut obfuscators: Vec<Box<dyn Obfuscator>> = Vec::new();
 
-        if options.timestamp {
-            obfuscators.push(Box::new(TimestampObfuscator::new()));
-        }
-        if options.silkscreen {
-            obfuscators.push(Box::new(SilkscreenObfuscator::new()));
-        }
-        if options.geometry {
-            obfuscators.push(Box::new(GeometryObfuscator::new()));
-        }
-        if options.structure {
-            obfuscators.push(Box::new(StructureObfuscator::new()));
-        }
-        if options.physical {
-            obfuscators.push(Box::new(PhysicalObfuscator::new()));
-        }
+        // v2.0 固定策略：只保留丝印扰动，其他策略不再开放给用户选择。
+        obfuscators.push(Box::new(SilkscreenObfuscator::new()));
 
         Self { obfuscators }
     }

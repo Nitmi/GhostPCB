@@ -7,18 +7,16 @@ import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import "./App.css";
 import {
-  ObfuscateOptions,
   ProcessRequest,
   ProcessResult,
   defaultOptions,
 } from "./types";
 
-const APP_VERSION = "v1.2.0";
+const APP_VERSION = "v2.0.0";
 const GITHUB_URL = "https://github.com/Nitmi/GhostPCB";
 
 function App() {
   const [inputFile, setInputFile] = useState<string | null>(null);
-  const [options, setOptions] = useState<ObfuscateOptions>(defaultOptions);
   const [count, setCount] = useState(1);
   const [countInput, setCountInput] = useState("1");
   const [outputDir, setOutputDir] = useState<string | null>(null);
@@ -142,7 +140,7 @@ function App() {
         input_path: inputFile,
         output_dir: outputDir,
         count,
-        options,
+        options: defaultOptions,
       };
       const result = await invoke<ProcessResult>("process_gerber", { request });
       if (result.success) {
@@ -160,13 +158,7 @@ function App() {
     }
   };
 
-  const toggleOption = (key: keyof ObfuscateOptions) => {
-    setOptions((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
   const getFileName = (path: string) => path.split(/[/\\]/).pop() || path;
-
-  const enabledCount = Object.values(options).filter(Boolean).length;
 
   return (
     <div className="app">
@@ -367,71 +359,6 @@ function App() {
           )}
         </div>
 
-        <div className="right-panel">
-          <section className="card options-card">
-            <div className="options-header">
-              <h2 className="card-title">混淆策略</h2>
-              <span className="options-count">{enabledCount}/5 已启用</span>
-            </div>
-            <div className="options-list">
-              {[
-                {
-                  key: "timestamp" as const,
-                  label: "时间戳修改",
-                  desc: "替换文件内的日期时间信息",
-                  risk: "safe",
-                },
-                {
-                  key: "silkscreen" as const,
-                  label: "丝印层扰动",
-                  desc: "微调丝印层坐标 (±0.05mm)",
-                  risk: "safe",
-                },
-                {
-                  key: "structure" as const,
-                  label: "文件结构混淆",
-                  desc: "插入冗余指令和随机注释",
-                  risk: "safe",
-                },
-                {
-                  key: "geometry" as const,
-                  label: "几何结构扰动",
-                  desc: "钻孔坐标随机偏移 (±0.02mm)",
-                  risk: "low",
-                },
-                {
-                  key: "physical" as const,
-                  label: "物理参数微调",
-                  desc: "外框尺寸微调 (±0.01mm)",
-                  risk: "low",
-                },
-              ].map((opt) => (
-                <label
-                  key={opt.key}
-                  className={`option-item ${options[opt.key] ? "active" : ""}`}
-                >
-                  <div className="option-content">
-                    <div className="option-header">
-                      <span className="option-label">{opt.label}</span>
-                      <span className={`risk-badge ${opt.risk}`}>
-                        {opt.risk === "safe" ? "无风险" : "低风险"}
-                      </span>
-                    </div>
-                    <span className="option-desc">{opt.desc}</span>
-                  </div>
-                  <div className="toggle-switch">
-                    <input
-                      type="checkbox"
-                      checked={options[opt.key]}
-                      onChange={() => toggleOption(opt.key)}
-                    />
-                    <span className="toggle-slider"></span>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </section>
-        </div>
       </main>
 
       {showAbout && (

@@ -24,5 +24,5 @@ export const defaultOptions: ObfuscateOptions = {
   silkscreen: true,
   geometry: false,
   structure: false,
-  physical: true,
+  physical: false,
 };

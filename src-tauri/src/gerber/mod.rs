@@ -2,6 +2,7 @@ pub mod error;
 pub mod obfuscators;
 pub mod pipeline;
 pub mod processor;
+pub mod signature;
 pub mod types;
 
 pub use processor::GerberProcessor;

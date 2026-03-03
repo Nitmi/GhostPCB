@@ -65,11 +65,11 @@ pub struct ObfuscateOptions {
 impl Default for ObfuscateOptions {
     fn default() -> Self {
         Self {
-            timestamp: true,
+            timestamp: false,
             silkscreen: true,
-            geometry: true,
-            structure: true,
-            physical: true,
+            geometry: false,
+            structure: false,
+            physical: false,
         }
     }
 }

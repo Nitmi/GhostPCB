@@ -1,5 +1,6 @@
 use crate::gerber::error::{GhostPcbError, Result};
 use crate::gerber::pipeline::ObfuscationPipeline;
+use crate::gerber::signature::{apply_lceda_signature, disguise_as_easyeda, looks_like_easyeda_export};
 use crate::gerber::types::{GerberFileType, ObfuscateOptions, ProcessRequest, ProcessResult};
 use chrono::{Local, Duration};
 use rand::Rng;
@@ -29,16 +30,13 @@ impl GerberProcessor {
         let mut rng = rand::thread_rng();
 
         // 生成指定数量的混淆文件
-        // 文件命名: Gerber_PCB{随机数}_YYYY-MM-DD.zip
-        // 每个文件使用不同的随机 PCB 编号和随机日期，避免被检测为相似文件
-        for _i in 1..=request.count {
-            // 随机 PCB 编号 (1-999)
-            let pcb_num: u32 = rng.gen_range(1..=999);
+        // 文件命名: Gerber_PCB{序号}_YYYY-MM-DD.zip
+        for i in 1..=request.count {
             // 随机日期 (过去 30 天内)
             let days_ago: i64 = rng.gen_range(1..=30);
             let random_date = (Local::now() - Duration::days(days_ago)).format("%Y-%m-%d").to_string();
             
-            let output_filename = format!("Gerber_PCB{}_{}.zip", pcb_num, random_date);
+            let output_filename = format!("Gerber_PCB{}_{}.zip", i, random_date);
             let output_path = output_dir.join(&output_filename);
             
             Self::process_single(input_path, &output_path, &request.options)?;
@@ -81,9 +79,10 @@ impl GerberProcessor {
         
         // 创建处理管道
         let pipeline = ObfuscationPipeline::from_options(options);
+        let source_is_easyeda = Self::detect_easyeda_source(temp_dir.path())?;
         
         // 处理所有文件
-        Self::process_directory(temp_dir.path(), &pipeline)?;
+        Self::process_directory(temp_dir.path(), &pipeline, !source_is_easyeda)?;
         
         // 重新打包
         Self::create_zip(temp_dir.path(), output_path)?;
@@ -115,7 +114,7 @@ impl GerberProcessor {
     }
 
     /// 处理目录中的所有 Gerber 文件
-    fn process_directory(dir: &Path, pipeline: &ObfuscationPipeline) -> Result<()> {
+    fn process_directory(dir: &Path, pipeline: &ObfuscationPipeline, disguise_non_easyeda: bool) -> Result<()> {
         for entry in walkdir::WalkDir::new(dir) {
             let entry = entry.map_err(|e| GhostPcbError::IoError(e.into()))?;
             let path = entry.path();
@@ -129,7 +128,7 @@ impl GerberProcessor {
                 
                 // 只处理已知的 Gerber 文件类型
                 if !matches!(file_type, GerberFileType::Unknown) {
-                    Self::process_file(path, file_type, pipeline)?;
+                    Self::process_file(path, file_type, pipeline, disguise_non_easyeda)?;
                 }
             }
         }
@@ -138,16 +137,56 @@ impl GerberProcessor {
     }
 
     /// 处理单个文件
-    fn process_file(path: &Path, file_type: GerberFileType, pipeline: &ObfuscationPipeline) -> Result<()> {
+    fn process_file(path: &Path, file_type: GerberFileType, pipeline: &ObfuscationPipeline, disguise_non_easyeda: bool) -> Result<()> {
         let mut content = String::new();
         File::open(path)?.read_to_string(&mut content)?;
         
-        let processed = pipeline.process(&content, file_type)?;
+        let mut processed = pipeline.process(&content, file_type)?;
+
+        if !file_type.is_drill() {
+            if disguise_non_easyeda {
+                let layer_name = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("UnknownLayer");
+                processed = disguise_as_easyeda(&processed, layer_name);
+            }
+            processed = apply_lceda_signature(&processed, false);
+        }
         
         let mut file = File::create(path)?;
         file.write_all(processed.as_bytes())?;
         
         Ok(())
+    }
+
+    fn detect_easyeda_source(dir: &Path) -> Result<bool> {
+        for entry in walkdir::WalkDir::new(dir) {
+            let entry = entry.map_err(|e| GhostPcbError::IoError(e.into()))?;
+            let path = entry.path();
+
+            if !path.is_file() {
+                continue;
+            }
+
+            let ext = path
+                .extension()
+                .and_then(|s| s.to_str())
+                .unwrap_or("");
+            let file_type = GerberFileType::from_extension(ext);
+
+            if matches!(file_type, GerberFileType::Unknown | GerberFileType::Drill) {
+                continue;
+            }
+
+            let mut text = String::new();
+            File::open(path)?.read_to_string(&mut text)?;
+            if looks_like_easyeda_export(&text) {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     /// 创建 ZIP 文件
