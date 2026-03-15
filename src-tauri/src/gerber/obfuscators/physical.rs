@@ -21,20 +21,20 @@ impl PhysicalObfuscator {
         let sign = if rng.gen_bool(0.5) { 1 } else { -1 };
         sign * rng.gen_range(50..=OUTLINE_OFFSET)
     }
-    
+
     /// 解析板框文件，获取当前板子的最大坐标
     fn get_board_bounds(content: &str) -> (i64, i64) {
         let coord_re = Regex::new(r"X(-?\d+)Y(-?\d+)").unwrap();
         let mut max_x: i64 = 0;
         let mut max_y: i64 = 0;
-        
+
         for line in content.lines() {
             let trimmed = line.trim();
             // 跳过格式定义行
             if trimmed.starts_with('%') || trimmed.starts_with("G04") {
                 continue;
             }
-            
+
             if let Some(caps) = coord_re.captures(trimmed) {
                 if let (Ok(x), Ok(y)) = (caps[1].parse::<i64>(), caps[2].parse::<i64>()) {
                     max_x = max_x.max(x.abs());
@@ -42,7 +42,7 @@ impl PhysicalObfuscator {
                 }
             }
         }
-        
+
         (max_x, max_y)
     }
 }
@@ -60,10 +60,10 @@ impl Obfuscator for PhysicalObfuscator {
 
         // 获取当前板子尺寸
         let (max_x, max_y) = Self::get_board_bounds(content);
-        
+
         // 计算允许的最大偏移量，确保不超过 100mm
         let offset = Self::get_uniform_offset();
-        
+
         // 如果偏移后会超过 100mm，则只使用负偏移或不偏移
         let safe_offset = if offset > 0 {
             let new_max_x = max_x + offset;
@@ -84,17 +84,21 @@ impl Obfuscator for PhysicalObfuscator {
 
         for line in content.lines() {
             let trimmed = line.trim();
-            
+
             // 跳过格式定义行（以 % 开头）、注释行（G04）、控制指令
-            if trimmed.starts_with('%') || trimmed.starts_with("G04") || 
-               trimmed.starts_with('M') || trimmed.is_empty() ||
-               trimmed.starts_with("G36") || trimmed.starts_with("G37") ||
-               trimmed.starts_with("G75") {
+            if trimmed.starts_with('%')
+                || trimmed.starts_with("G04")
+                || trimmed.starts_with('M')
+                || trimmed.is_empty()
+                || trimmed.starts_with("G36")
+                || trimmed.starts_with("G37")
+                || trimmed.starts_with("G75")
+            {
                 result.push_str(line);
                 result.push('\n');
                 continue;
             }
-            
+
             // 跳过 D 码选择指令 (如 D10*)
             if trimmed.starts_with('D') && !trimmed.contains('X') {
                 result.push_str(line);
@@ -108,11 +112,11 @@ impl Obfuscator for PhysicalObfuscator {
                     let x: i64 = caps[2].parse().unwrap_or(0);
                     let y: i64 = caps[3].parse().unwrap_or(0);
                     let suffix = caps.get(4).map(|m| m.as_str()).unwrap_or("");
-                    
+
                     // 对所有坐标应用统一偏移
                     let new_x = x + safe_offset;
                     let new_y = y + safe_offset;
-                    
+
                     format!("{}X{}Y{}{}", prefix, new_x, new_y, suffix)
                 });
                 result.push_str(&new_line);

@@ -75,7 +75,11 @@ pub fn apply_lceda_signature(content: &str, imported_mode: bool) -> String {
 fn split_text(content: &str) -> (Vec<String>, TextLayout) {
     let lines = content.lines().map(|line| line.to_string()).collect();
     let has_trailing_newline = content.ends_with('\n');
-    let eol = if content.contains("\r\n") { "\r\n" } else { "\n" };
+    let eol = if content.contains("\r\n") {
+        "\r\n"
+    } else {
+        "\n"
+    };
     (
         lines,
         TextLayout {

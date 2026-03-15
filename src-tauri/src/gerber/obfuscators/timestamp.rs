@@ -16,7 +16,9 @@ impl TimestampObfuscator {
     }
 
     pub fn with_datetime(datetime: NaiveDateTime) -> Self {
-        Self { new_datetime: datetime }
+        Self {
+            new_datetime: datetime,
+        }
     }
 }
 
@@ -27,7 +29,7 @@ fn generate_random_datetime() -> NaiveDateTime {
     let hours = rng.gen_range(8..18);
     let minutes = rng.gen_range(0..60);
     let seconds = rng.gen_range(0..60);
-    
+
     now - Duration::days(days_ago)
         - Duration::hours(now.time().hour() as i64)
         - Duration::minutes(now.time().minute() as i64)
@@ -44,7 +46,7 @@ impl Obfuscator for TimestampObfuscator {
 
     fn obfuscate(&self, content: &str, _file_type: GerberFileType) -> Result<String> {
         let mut result = content.to_string();
-        
+
         // 匹配 YYYY-MM-DD HH:MM:SS 格式
         let re1 = Regex::new(r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}").unwrap();
         let new_dt1 = self.new_datetime.format("%Y-%m-%d %H:%M:%S").to_string();

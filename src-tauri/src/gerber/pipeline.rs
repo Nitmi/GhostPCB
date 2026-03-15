@@ -19,11 +19,11 @@ impl ObfuscationPipeline {
 
     pub fn process(&self, content: &str, file_type: GerberFileType) -> Result<String> {
         let mut result = content.to_string();
-        
+
         for obfuscator in &self.obfuscators {
             result = obfuscator.obfuscate(&result, file_type)?;
         }
-        
+
         Ok(result)
     }
 

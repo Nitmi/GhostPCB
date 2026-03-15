@@ -1,5 +1,5 @@
 //! 集成测试
-//! 
+//!
 //! 测试前请将 Gerber.zip 放到 tests/fixtures/ 目录下
 
 use ghostpcb_lib::*;
@@ -11,7 +11,7 @@ const TEST_GERBER_ZIP: &str = "tests/fixtures/Gerber.zip";
 #[test]
 fn test_process_gerber_zip() {
     let zip_path = Path::new(TEST_GERBER_ZIP);
-    
+
     if !zip_path.exists() {
         println!("⚠️ 测试文件不存在: {}", TEST_GERBER_ZIP);
         println!("请将 Gerber.zip 放到 src-tauri/tests/fixtures/ 目录下");
@@ -19,7 +19,7 @@ fn test_process_gerber_zip() {
     }
 
     let output_base = std::env::temp_dir().join("ghostpcb_test");
-    
+
     let request = ProcessRequest {
         input_path: zip_path.to_string_lossy().to_string(),
         output_dir: Some(output_base.to_string_lossy().to_string()),
@@ -28,23 +28,41 @@ fn test_process_gerber_zip() {
     };
 
     let result = ghostpcb_lib::gerber::GerberProcessor::process(&request);
-    
+
     assert!(result.is_ok(), "处理失败: {:?}", result.err());
-    
+
     let result = result.unwrap();
     assert!(result.success);
     assert_eq!(result.output_files.len(), 2);
-    
+
     for file in &result.output_files {
         let path = Path::new(file);
         assert!(path.exists(), "输出文件不存在: {}", file);
         // 验证文件名格式: Gerber_PCB{序号}_YYYY-MM-DD.zip
         let filename = path.file_name().unwrap().to_str().unwrap();
-        assert!(filename.starts_with("Gerber_PCB"), "文件名应以 Gerber_PCB 开头: {}", filename);
-        assert!(filename.ends_with(".zip"), "文件名应以 .zip 结尾: {}", filename);
+        assert!(
+            filename.starts_with("Gerber_PCB"),
+            "文件名应以 Gerber_PCB 开头: {}",
+            filename
+        );
+        assert!(
+            filename.ends_with(".zip"),
+            "文件名应以 .zip 结尾: {}",
+            filename
+        );
         // 验证输出目录包含 GhostPCB_ 前缀
-        let parent = path.parent().unwrap().file_name().unwrap().to_str().unwrap();
-        assert!(parent.starts_with("GhostPCB_"), "输出目录应以 GhostPCB_ 开头: {}", parent);
+        let parent = path
+            .parent()
+            .unwrap()
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap();
+        assert!(
+            parent.starts_with("GhostPCB_"),
+            "输出目录应以 GhostPCB_ 开头: {}",
+            parent
+        );
         println!("✅ 生成: {}", file);
     }
 
@@ -62,8 +80,10 @@ fn test_timestamp_obfuscator() {
 
     let input = "G04 EasyEDA Pro v3.2.58, 2026-01-05 14:09:15*\nG04 Test*";
     let obfuscator = TimestampObfuscator::new();
-    let result = obfuscator.obfuscate(input, GerberFileType::Unknown).unwrap();
-    
+    let result = obfuscator
+        .obfuscate(input, GerberFileType::Unknown)
+        .unwrap();
+
     assert!(!result.contains("2026-01-05 14:09:15"), "时间戳未被替换");
     assert!(result.contains("G04 EasyEDA Pro"), "其他内容不应改变");
     println!("原始: {}", input);
@@ -74,14 +94,61 @@ fn test_timestamp_obfuscator() {
 fn test_silkscreen_obfuscator() {
     use ghostpcb_lib::gerber::obfuscators::{Obfuscator, SilkscreenObfuscator};
     use ghostpcb_lib::gerber::types::GerberFileType;
+    use regex::Regex;
 
-    let input = "X1000000Y2000000D01*\nX1500000Y2500000D03*";
+    let input = r#"G04 Layer: TopSilkscreenLayer*
+%FSLAX42Y42*%
+%MOMM*%
+G01X64Y1213D02*
+G01X333Y1213D01*
+G03X397Y1179I5J0D01*"#;
     let obfuscator = SilkscreenObfuscator::new();
-    
-    let result = obfuscator.obfuscate(input, GerberFileType::TopSilkscreen).unwrap();
+
+    let result = obfuscator
+        .obfuscate(input, GerberFileType::TopSilkscreen)
+        .unwrap();
     assert_ne!(input, result, "丝印层坐标应该被修改");
-    
-    let result2 = obfuscator.obfuscate(input, GerberFileType::TopLayer).unwrap();
+
+    let line_re = Regex::new(r"X(-?\d+)Y(-?\d+)").unwrap();
+    let source_points: Vec<(i64, i64)> = input
+        .lines()
+        .filter(|line| line.ends_with("D01*") || line.ends_with("D02*") || line.ends_with("D03*"))
+        .filter_map(|line| {
+            let caps = line_re.captures(line)?;
+            Some((caps[1].parse().ok()?, caps[2].parse().ok()?))
+        })
+        .collect();
+    let result_points: Vec<(i64, i64)> = result
+        .lines()
+        .filter(|line| line.ends_with("D01*") || line.ends_with("D02*") || line.ends_with("D03*"))
+        .filter_map(|line| {
+            let caps = line_re.captures(line)?;
+            Some((caps[1].parse().ok()?, caps[2].parse().ok()?))
+        })
+        .collect();
+
+    assert_eq!(source_points.len(), result_points.len(), "点数不应变化");
+    let shift_x = result_points[0].0 - source_points[0].0;
+    let shift_y = result_points[0].1 - source_points[0].1;
+    assert!(
+        (1..=3).contains(&shift_x),
+        "X 偏移应控制在 0.01-0.03mm 内: {}",
+        shift_x
+    );
+    assert!(
+        (1..=3).contains(&shift_y),
+        "Y 偏移应控制在 0.01-0.03mm 内: {}",
+        shift_y
+    );
+    for (src, dst) in source_points.iter().zip(result_points.iter()) {
+        assert_eq!(dst.0 - src.0, shift_x, "所有 X 坐标应保持一致平移");
+        assert_eq!(dst.1 - src.1, shift_y, "所有 Y 坐标应保持一致平移");
+    }
+    assert!(result.contains("I5J0"), "圆弧中心偏移量 I/J 不应被修改");
+
+    let result2 = obfuscator
+        .obfuscate(input, GerberFileType::TopLayer)
+        .unwrap();
     assert_eq!(input.trim(), result2.trim(), "非丝印层不应被修改");
 }
 
@@ -93,7 +160,7 @@ fn test_geometry_obfuscator_drill() {
     let input = ";TYPE=PLATED\nT01\nX25.24994Y8.763\nX23.876Y9.906";
     let obfuscator = GeometryObfuscator::new();
     let result = obfuscator.obfuscate(input, GerberFileType::Drill).unwrap();
-    
+
     assert!(!result.contains("X25.24994Y8.763"), "钻孔坐标应该被修改");
     assert!(result.contains(";TYPE=PLATED"), "头部注释不应改变");
     println!("原始:\n{}", input);
@@ -107,8 +174,10 @@ fn test_structure_obfuscator() {
 
     let input = "G04 Layer: TopLayer*\nD10*\nX100Y200D01*";
     let obfuscator = StructureObfuscator::new();
-    let result = obfuscator.obfuscate(input, GerberFileType::TopLayer).unwrap();
-    
+    let result = obfuscator
+        .obfuscate(input, GerberFileType::TopLayer)
+        .unwrap();
+
     assert!(result.contains("Build ID:"), "应该添加随机 Build ID");
     println!("混淆后:\n{}", result);
 }
@@ -207,6 +276,12 @@ fn test_disguise_for_non_easyeda() {
     let input = "%FSLAX45Y45*%\n%MOMM*%\n%ADD10C,0.2*%\nM02*\n";
     let output = disguise_as_easyeda(input, "Gerber_TopLayer.GTL");
 
-    assert!(output.contains("EasyEDA Pro v3.2.91"), "应注入 EasyEDA 标识头");
-    assert!(output.contains("Generated by one-click"), "应注入 one-click 头注释");
+    assert!(
+        output.contains("EasyEDA Pro v3.2.91"),
+        "应注入 EasyEDA 标识头"
+    );
+    assert!(
+        output.contains("Generated by one-click"),
+        "应注入 one-click 头注释"
+    );
 }

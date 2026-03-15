@@ -47,7 +47,7 @@ impl Obfuscator for GeometryObfuscator {
         if file_type.is_drill() {
             return self.obfuscate_drill(content);
         }
-        
+
         // 对铜层应用微小偏移
         if file_type.is_copper_layer() {
             return self.obfuscate_copper(content);
@@ -65,10 +65,15 @@ impl GeometryObfuscator {
 
         for line in content.lines() {
             let trimmed = line.trim();
-            
+
             // 跳过头部定义行
-            if trimmed.starts_with(';') || trimmed.starts_with('%') || trimmed.starts_with('M') 
-               || trimmed.starts_with('T') || trimmed.starts_with('G') || trimmed.is_empty() {
+            if trimmed.starts_with(';')
+                || trimmed.starts_with('%')
+                || trimmed.starts_with('M')
+                || trimmed.starts_with('T')
+                || trimmed.starts_with('G')
+                || trimmed.is_empty()
+            {
                 result.push_str(line);
                 result.push('\n');
                 continue;
@@ -101,17 +106,21 @@ impl GeometryObfuscator {
 
         for line in content.lines() {
             let trimmed = line.trim();
-            
+
             // 跳过格式定义行（以 % 开头）、注释行（G04）、控制指令
-            if trimmed.starts_with('%') || trimmed.starts_with("G04") || 
-               trimmed.starts_with('M') || trimmed.is_empty() ||
-               trimmed.starts_with("G36") || trimmed.starts_with("G37") ||
-               trimmed.starts_with("G75") {
+            if trimmed.starts_with('%')
+                || trimmed.starts_with("G04")
+                || trimmed.starts_with('M')
+                || trimmed.is_empty()
+                || trimmed.starts_with("G36")
+                || trimmed.starts_with("G37")
+                || trimmed.starts_with("G75")
+            {
                 result.push_str(line);
                 result.push('\n');
                 continue;
             }
-            
+
             // 跳过 D 码选择指令 (如 D10*)
             if trimmed.starts_with('D') && !trimmed.contains('X') {
                 result.push_str(line);
@@ -125,10 +134,10 @@ impl GeometryObfuscator {
                     let x: i64 = caps[2].parse().unwrap_or(0);
                     let y: i64 = caps[3].parse().unwrap_or(0);
                     let suffix = caps.get(4).map(|m| m.as_str()).unwrap_or("");
-                    
+
                     let new_x = Self::apply_gerber_coord_jitter(x);
                     let new_y = Self::apply_gerber_coord_jitter(y);
-                    
+
                     format!("{}X{}Y{}{}", prefix, new_x, new_y, suffix)
                 });
                 result.push_str(&new_line);

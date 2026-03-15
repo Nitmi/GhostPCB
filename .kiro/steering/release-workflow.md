@@ -40,6 +40,13 @@ cargo test
 }
 ```
 
+```toml
+//Cargo.toml
+[package]
+name = "ghostpcb"
+version = "x.y.z"
+```
+
 ```json
 // src-tauri/tauri.conf.json
 {

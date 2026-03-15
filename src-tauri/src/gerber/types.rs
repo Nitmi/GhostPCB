@@ -3,17 +3,17 @@ use serde::{Deserialize, Serialize};
 /// Gerber 文件类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GerberFileType {
-    TopLayer,           // .GTL
-    BottomLayer,        // .GBL
-    TopSilkscreen,      // .GTO
-    BottomSilkscreen,   // .GBO
-    TopSolderMask,      // .GTS
-    BottomSolderMask,   // .GBS
-    TopPaste,           // .GTP
-    BottomPaste,        // .GBP
-    BoardOutline,       // .GKO
-    InnerLayer,         // .G1-.Gn
-    Drill,              // .DRL
+    TopLayer,         // .GTL
+    BottomLayer,      // .GBL
+    TopSilkscreen,    // .GTO
+    BottomSilkscreen, // .GBO
+    TopSolderMask,    // .GTS
+    BottomSolderMask, // .GBS
+    TopPaste,         // .GTP
+    BottomPaste,      // .GBP
+    BoardOutline,     // .GKO
+    InnerLayer,       // .G1-.Gn
+    Drill,            // .DRL
     Unknown,
 }
 

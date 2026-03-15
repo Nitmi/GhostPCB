@@ -20,7 +20,7 @@ impl StructureObfuscator {
     fn add_random_comment(content: &str) -> String {
         let random_id = Self::generate_random_id();
         let comment = format!("G04 Build ID: {}*\n", random_id);
-        
+
         // 在第一个 G04 注释后插入
         if let Some(pos) = content.find("G04") {
             if let Some(end_pos) = content[pos..].find('\n') {
@@ -30,7 +30,7 @@ impl StructureObfuscator {
                 return result;
             }
         }
-        
+
         // 如果没找到，在开头插入
         format!("{}{}", comment, content)
     }
@@ -43,7 +43,11 @@ impl StructureObfuscator {
 
         for line in content.lines() {
             // 检测当前选择的 D-code
-            if line.starts_with('D') && line.ends_with('*') && !line.contains('X') && !line.contains('Y') {
+            if line.starts_with('D')
+                && line.ends_with('*')
+                && !line.contains('X')
+                && !line.contains('Y')
+            {
                 current_dcode = Some(line.to_string());
             }
 
@@ -52,7 +56,8 @@ impl StructureObfuscator {
 
             // 随机在某些行后插入冗余 D-code 选择
             if let Some(ref dcode) = current_dcode {
-                if rng.gen_bool(0.05) { // 5% 概率
+                if rng.gen_bool(0.05) {
+                    // 5% 概率
                     result.push_str(dcode);
                     result.push('\n');
                 }
@@ -79,10 +84,10 @@ impl Obfuscator for StructureObfuscator {
         }
 
         let mut result = content.to_string();
-        
+
         // 添加随机注释
         result = Self::add_random_comment(&result);
-        
+
         // 插入冗余指令
         result = Self::insert_redundant_dcodes(&result);
 
