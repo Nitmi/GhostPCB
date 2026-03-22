@@ -37,6 +37,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ5ODQxQkZDNzc3QUIzNUUKUldSZXMzcDMvQnVFU2VKYnZEaVpHQmNOODcrNzB2QnV1UG55VGZsQzl2WDk4eUtONGY3bldGbUIK",
       "endpoints": [
+        "https://gh.123778.xyz/GhostPCB/releases/latest/download/latest.json",
         "https://github.com/Nitmi/GhostPCB/releases/latest/download/latest.json",
         "https://gh-proxy.org/https://github.com/Nitmi/GhostPCB/releases/latest/download/latest.json",
         "https://hk.gh-proxy.org/https://github.com/Nitmi/GhostPCB/releases/latest/download/latest.json",
