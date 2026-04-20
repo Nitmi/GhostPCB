@@ -1,0 +1,142 @@
+name: purge gh.123778 release cache
+
+"on":
+  release:
+    types:
+      - published
+      - edited
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to purge, for example v2.0.1
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  CDN_RELEASE_BASE_URL: https://gh.123778.xyz/GhostPCB/releases
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag
+        id: resolve-tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            tag="${{ github.event.release.tag_name }}"
+          else
+            tag="${{ inputs.tag }}"
+          fi
+
+          if [[ -z "${tag}" ]]; then
+            echo "No release tag was provided."
+            exit 1
+          fi
+
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "Resolved release tag: ${tag}"
+
+      - name: Build purge URL list
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_ASSETS_URL: ${{ github.event.release.assets_url }}
+          RELEASE_TAG: ${{ steps.resolve-tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          tag = os.environ["RELEASE_TAG"]
+          base = os.environ["CDN_RELEASE_BASE_URL"].rstrip("/")
+          api_base = os.environ.get("GITHUB_API_URL", "https://api.github.com").rstrip("/")
+          repo = os.environ["GITHUB_REPOSITORY"]
+          event_name = os.environ.get("GITHUB_EVENT_NAME", "")
+          release_assets_url = os.environ.get("RELEASE_ASSETS_URL", "").strip()
+          token = os.environ["GH_TOKEN"]
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "User-Agent": "github-actions",
+          }
+
+          def fetch_json(url: str):
+              request = urllib.request.Request(url, headers=headers)
+              with urllib.request.urlopen(request) as response:
+                  return json.load(response)
+
+          if event_name == "release" and release_assets_url:
+              assets = fetch_json(release_assets_url)
+          else:
+              release = fetch_json(f"{api_base}/repos/{repo}/releases/tags/{tag}")
+              assets = release["assets"]
+
+          urls = [f"{base}/latest/download/latest.json"]
+          seen = set(urls)
+
+          for asset in assets:
+              asset_name = asset["name"]
+              purge_url = f"{base}/download/{tag}/{asset_name}"
+              if purge_url in seen:
+                  continue
+              seen.add(purge_url)
+              urls.append(purge_url)
+
+          Path("purge-urls.json").write_text(
+              json.dumps(urls, ensure_ascii=False),
+              encoding="utf-8",
+          )
+
+          print(f"Prepared {len(urls)} purge URLs for {tag}.")
+          for url in urls:
+              print(url)
+          PY
+
+      - name: Purge Cloudflare cache
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
+            echo "CLOUDFLARE_API_TOKEN is not set."
+            exit 1
+          fi
+
+          if [[ -z "${CLOUDFLARE_ZONE_ID:-}" ]]; then
+            echo "CLOUDFLARE_ZONE_ID is not set."
+            exit 1
+          fi
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          urls = json.loads(Path("purge-urls.json").read_text(encoding="utf-8"))
+          Path("purge-payload.json").write_text(
+              json.dumps({"files": urls}, ensure_ascii=False),
+              encoding="utf-8",
+          )
+          PY
+
+          curl --fail-with-body --silent --show-error \
+            -X POST "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/purge_cache" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data @purge-payload.json
