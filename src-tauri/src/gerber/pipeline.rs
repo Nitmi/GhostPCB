@@ -11,7 +11,9 @@ impl ObfuscationPipeline {
     pub fn from_options(_options: &ObfuscateOptions) -> Self {
         let mut obfuscators: Vec<Box<dyn Obfuscator>> = Vec::new();
 
-        // v2.0 固定策略：只保留丝印扰动，其他策略不再开放给用户选择。
+        // 全层逐坐标独立抖动 (先抖动，后丝印整体偏移)
+        obfuscators.push(Box::new(CoordinateJitterObfuscator::new()));
+        // 丝印层整体平移
         obfuscators.push(Box::new(SilkscreenObfuscator::new()));
 
         Self { obfuscators }

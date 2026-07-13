@@ -1,9 +1,11 @@
+mod coordinate_jitter;
 mod geometry;
 mod physical;
 mod silkscreen;
 mod structure;
 mod timestamp;
 
+pub use coordinate_jitter::CoordinateJitterObfuscator;
 pub use geometry::GeometryObfuscator;
 pub use physical::PhysicalObfuscator;
 pub use silkscreen::SilkscreenObfuscator;
